@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'YOUR_MODAL_URL_HERE'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://aravindkv28--ayurparam-service-fastapi-app.modal.run'
 
 export default function Home() {
   const [input, setInput] = useState('')
