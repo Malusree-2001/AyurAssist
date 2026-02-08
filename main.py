@@ -387,16 +387,18 @@ def fastapi_app():
             if entities:
                 unique_words = list(dict.fromkeys(e["word"] for e in entities))
 
-                # 2a. Check each entity against our Ayurveda CSV
+                # 2a. Exact CSV match on each entity (no fuzzy — avoids
+                #      garbage like "fat" fuzzy-matching short CSV terms)
                 for word in unique_words:
-                    match = _fuzzy_csv_lookup(st.term_lookup, word)
-                    if match:
+                    key = word.strip().lower()
+                    if key in st.term_lookup:
                         keyword = word
-                        csv_data = match
-                        snomed_code = match.get("SNOMED_Code", "N/A").strip() or "N/A"
+                        csv_data = st.term_lookup[key]
+                        snomed_code = csv_data.get("SNOMED_Code", "N/A").strip() or "N/A"
                         break
 
-                # 2b. No CSV hit — try UMLS restricted to ICD-10 (diseases only)
+                # 2b. No exact CSV hit — try UMLS restricted to ICD-10
+                #      (covers diseases AND conditions/symptoms via R-codes)
                 if csv_data is None:
                     umls_results = await asyncio.gather(*(
                         asyncio.to_thread(
@@ -404,20 +406,23 @@ def fastapi_app():
                         )
                         for w in unique_words
                     ))
+                    # Rank: SNOMED in our CSV > has SNOMED > CUI only;
+                    # among ties prefer longer entity (more specific term)
+                    candidates = []
                     for word, (cui, snomed) in zip(unique_words, umls_results):
-                        if cui != "N/A":
-                            keyword = word
-                            umls_cui = cui
-                            snomed_code = snomed
-                            break
+                        if cui == "N/A":
+                            continue
+                        in_csv = (snomed != "N/A"
+                                  and snomed in st.snomed_lookup)
+                        has_snomed = snomed != "N/A"
+                        candidates.append(
+                            (in_csv, has_snomed, len(word), word, cui, snomed)
+                        )
+                    if candidates:
+                        candidates.sort(reverse=True)
+                        _, _, _, keyword, umls_cui, snomed_code = candidates[0]
 
-            # 2c. Fallback — try raw input against UMLS (diseases only)
-            if umls_cui == "N/A" and csv_data is None:
-                umls_cui, snomed_code = await asyncio.to_thread(
-                    _lookup_umls, st.umls_api_key, keyword, search_sabs="ICD10CM"
-                )
-
-            # 3. CSV lookup from SNOMED (if UMLS path found one)
+            # 3. CSV lookup from SNOMED or fuzzy keyword match
             if csv_data is None:
                 if snomed_code != "N/A":
                     csv_data = st.snomed_lookup.get(snomed_code)

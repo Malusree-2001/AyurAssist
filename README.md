@@ -17,29 +17,28 @@ Browser (static site on GitHub Pages)
   |
   |─ POST / ──────> [CPU Container: ASGI + NER + CSV + UMLS]
                       |
-                      ├─ 1. NER extraction (d4data/biomedical-ner-all, CPU)
-                      ├─ 2. UMLS lookup (keyword -> CUI -> SNOMED code)
+                      ├─ 1. NER extraction (scispacy en_core_sci_lg, CPU)
+                      ├─ 2. Entity resolution: exact CSV match, then UMLS ICD-10
                       ├─ 3. CSV lookup (226 WHO ITA conditions)
-                      ├─ 4. generate.remote() ──> [GPU Container: vLLM]
-                      |                            AyurParam generates
-                      |                            treatment JSON
-                      └─ 5. Parse, enrich with CSV, return response
+                      ├─ 4. generate.remote() ──> [GPU Container: transformers]
+                      |                            AyurParam generates treatment
+                      └─ 5. Assemble response with clinical codes + treatment
 ```
 
 ### CPU Container (ASGI + orchestration)
 
 Handles everything that doesn't need a GPU:
 
-- **Biomedical NER** -- `d4data/biomedical-ner-all` runs on CPU via HuggingFace Transformers. Extracts `Disease` and `Symptom` entities from patient narratives.
-- **UMLS mapping** -- Two-step API lookup: search for keyword to get a UMLS CUI, then query the CUI's atoms endpoint filtered by `SNOMEDCT_US` to get the actual SNOMED code. This properly separates CUI and SNOMED identifiers.
+- **Biomedical NER** -- [scispacy](https://allenai.github.io/scispacy/) `en_core_sci_lg` runs on CPU. Extracts biomedical entities from patient narratives. All entities are labeled `ENTITY` (generic), so keyword selection uses a two-stage resolution strategy (see [Entity Resolution](#entity-resolution) below).
+- **UMLS mapping** -- Two-step API lookup: search for keyword to get a UMLS CUI, then query the CUI's atoms endpoint filtered by `SNOMEDCT_US` to get the actual SNOMED code. When used for entity resolution, the search is restricted to `ICD10CM` (ICD-10 Clinical Modification) to ensure only diseases and clinical conditions are matched.
 - **WHO ITA CSV lookup** -- `ayurveda_snomed_mapping.csv` contains 226 Ayurvedic conditions from the WHO International Terminologies for Ayurveda, mapped to SNOMED codes. Lookup by SNOMED code first, then fuzzy text match on condition name.
 - **FastAPI ASGI app** -- Serves the `/` (analyze) and `/warmup` endpoints. Uses FastAPI's `lifespan` to load NER and CSV once at startup.
 
 Stays warm for 5 minutes after the last request (`scaledown_window=300`).
 
-### GPU Container (vLLM)
+### GPU Container (transformers)
 
-Runs only the AyurParam LLM (`bharatgenai/AyurParam`) via [vLLM](https://github.com/vllm-project/vllm) for high-throughput inference with PagedAttention. Receives a prompt enriched with SNOMED codes and WHO ITA context, returns structured JSON containing:
+Runs only the AyurParam LLM (`bharatgenai/AyurParam`) via HuggingFace `transformers` with `device_map="auto"` for native generation (AyurParam's custom tokenizer is not compatible with vLLM). Receives a prompt enriched with SNOMED codes and WHO ITA context, returns text containing:
 
 - Condition name (Sanskrit and English)
 - Dosha involvement
@@ -60,15 +59,25 @@ Cold-starting the GPU container takes 30-60 seconds (model loading). To hide thi
 2. The CPU container starts, loads NER model, and simultaneously kicks off `LLMEngine.warmup.remote()` in a background asyncio task.
 3. By the time the user finishes typing (20-30 seconds), the GPU container is typically already warm.
 
+### Entity Resolution
+
+scispacy's `en_core_sci_lg` labels all entities as generic `ENTITY` (no Disease/Symptom distinction), so free-text input like *"I feel like I've been hit by a bus, my teeth were chattering, I had soft-serve from the dairy"* produces entities like `bus`, `teeth`, `dairy` alongside real clinical terms. The keyword selection strategy filters these out:
+
+1. **Exact CSV match** -- Each entity is checked against the WHO ITA term lookup (exact, case-insensitive). If a match is found, it is used immediately. This is fast and guarantees an Ayurvedic disease term.
+2. **UMLS ICD-10 lookup** -- If no CSV match, all entities are queried against UMLS in parallel, restricted to `ICD10CM` (ICD-10 Clinical Modification). ICD-10 only contains diseases and clinical conditions, so non-medical terms like `bus` or `dairy` are filtered out. Results are ranked: entities whose SNOMED code exists in the CSV are preferred, then those with any SNOMED code, then longest entity text (more specific medical term).
+3. **Fuzzy CSV fallback** -- The selected keyword is fuzzy-matched against CSV terms (threshold 0.6) to find the closest Ayurvedic condition.
+
 ### Data Flow
 
 ```
 Patient narrative
-    -> NER: extract Disease/Symptom entities
-    -> UMLS: keyword -> CUI (e.g., C0018681) -> SNOMED code (e.g., 25064002)
+    -> NER: scispacy extracts biomedical entities
+    -> Entity resolution:
+         1. exact CSV match on each entity
+         2. UMLS ICD-10 lookup (diseases/conditions only), ranked by CSV match
     -> CSV:  SNOMED code -> WHO ITA match (Sanskrit name, ITA ID, description)
-    -> LLM:  prompt enriched with all context -> AyurParam generates treatment JSON
-    -> Response: merged treatment info with clinical codes
+    -> LLM:  6 focused questions sent to AyurParam -> treatment responses
+    -> Response: assembled treatment info with clinical codes
 ```
 
 ## Project Structure
