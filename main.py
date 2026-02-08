@@ -2,11 +2,8 @@ import modal
 import json
 import csv
 import os
-import requests
 from difflib import SequenceMatcher
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 
 from config import (
     MODAL_APP_NAME, MODAL_VOLUME_NAME,
@@ -144,6 +141,8 @@ def _fuzzy_csv_lookup(term_lookup, keyword):
 
 def _lookup_umls(api_key, keyword):
     """Two-step UMLS: search -> CUI, then CUI atoms -> SNOMED code."""
+    import requests
+
     umls_cui = "N/A"
     snomed_code = "N/A"
     if not api_key:
@@ -284,6 +283,9 @@ async def lifespan(web_app):
 )
 @modal.asgi_app()
 def fastapi_app():
+    from fastapi import FastAPI, Request, HTTPException
+    from fastapi.middleware.cors import CORSMiddleware
+
     web = FastAPI(lifespan=lifespan)
     web.add_middleware(
         CORSMiddleware,

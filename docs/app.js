@@ -1,4 +1,4 @@
-const API_BASE = 'https://aravindkv28--ayurparam-service-fastapi-app.modal.run';
+const API_BASE = 'https://sunbiz--ayurparam-service-fastapi-app.modal.run';
 
 // Wake up GPU container while the user types (fire-and-forget)
 fetch(API_BASE + '/warmup').catch(() => {});
