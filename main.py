@@ -35,6 +35,7 @@ cpu_image = (
         "requests==2.31.0"
     )
     .add_local_file(CSV_SOURCE_PATH, CSV_CONTAINER_PATH)
+    .add_local_file("config.py", "/root/config.py")
 )
 
 gpu_image = (
@@ -46,6 +47,7 @@ gpu_image = (
         "fastapi[standard]==0.109.0",
         "requests==2.31.0",
     )
+    .add_local_file("config.py", "/root/config.py")
 )
 
 volume = modal.Volume.from_name(MODAL_VOLUME_NAME, create_if_missing=True)
