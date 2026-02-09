@@ -1,129 +1,409 @@
-<!DOCTYPE html>
+
+```html
+<!-- index.html -->
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AyurAssist | Clinical Decision Support</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AyurAssist — Clinical Decision Support</title>
+  <meta name="description" content="AyurAssist: clinical decision support bridging SNOMED CT with Ayurvedic knowledge." />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-    <header>
-        <div class="header-container">
-            <div class="logo">
-                <i data-lucide="leaf" class="icon-gold"></i>
-                <h1>AyurAssist</h1>
-            </div>
-            <div class="toggle-container">
-                <span>Clinical Mode</span>
-                <div class="switch"></div>
-            </div>
+  <header class="site-header" role="banner">
+    <div class="container header-inner">
+      <div class="brand" aria-label="AyurAssist home">
+        <div class="logo" aria-hidden="true">
+          <!-- Leaf + Pulse minimalist logo -->
+          <svg viewBox="0 0 64 64" class="logo-svg" xmlns="http://www.w3.org/2000/svg">
+            <path d="M48 10c-10 2-18 8-23 16-6 10-6 21-6 21s11 0 21-6c8-5 14-13 16-23-3 2-7 3-11 3-7 0-11-4-11-11 0-4 1-8 3-11z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 40h10l4-8 6 18 6-14 4 8h18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
-    </header>
-
-    <main class="main-container">
-        <section class="card diagnostic-card">
-            <div class="card-header">
-                <i data-lucide="brain-circuit"></i>
-                <h2>Diagnostic Entry</h2>
-            </div>
-            <textarea id="symptomInput" placeholder="Enter patient symptoms (e.g., 'difficulty breathing and wheezing')..."></textarea>
-            <div id="entityOverlay" class="entity-container">
-                </div>
-        </section>
-
-        <section id="mappingCard" class="card mapping-card hidden">
-            <div class="mapping-grid">
-                <div class="mapping-brand">
-                    <span class="standard-label">SNOMED CT: 267036007</span>
-                    <h3 class="sanskrit-title">Śvašah (Dyspnoea)</h3>
-                    <small>Standard: ITA-5.20.1</small>
-                </div>
-                <div class="pathogenesis-flow">
-                    <label>Pathogenesis (Samprapti)</label>
-                    <div class="flow-steps">
-                        <span>Vata & Kapha</span>
-                        <i data-lucide="arrow-right"></i>
-                        <span>Pranavaha Srotas</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <div class="card grid-item">
-    <h3><i data-lucide="activity"></i> Nidaña & Rupa</h3>
-    <div class="list-section">
-        <div class="content-block">
-            <strong>Root Causes (Nidāna):</strong>
-            <p>Caused by excessive intake of hot, spicy, or fermented foods.</p>
+        <div class="brand-text">
+          <div class="brand-name">AyurAssist</div>
+          <div class="brand-tag">Clinical Decision Support</div>
         </div>
-        <div class="content-block">
-            <strong>Symptoms (Rupa):</strong>
-            <p>Chest tightness, cough, restlessness.</p>
-        </div>
+      </div>
+
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="nav-link" href="#mapping">Mapping</a>
+        <a class="nav-link" href="#treatment">Treatment</a>
+        <a class="nav-link nav-cta" href="#alerts">Safety</a>
+      </nav>
     </div>
-</div>
+  </header>
 
-            <div class="card grid-item span-two">
-                <h3><i data-lucide="beaker"></i> Medicinal Interventions</h3>
-                <table class="med-table">
-                    <thead>
-                        <tr>
-                            <th>Remedy Type</th>
-                            <th>Treatment</th>
-                            <th>Preparation & Dosage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Ottamooli</td>
-                            <td>Vasa (Malabar Nut)</td>
-                            <td>10–20 ml juice with honey</td>
-                        </tr>
-                        <tr>
-                            <td>Classical</td>
-                            <td>Śvašakuthara Rasa</td>
-                            <td>125–250 mg with honey</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="card grid-item">
-                <h3><i data-lucide="sparkles"></i> Therapies & Lifestyle</h3>
-                <div class="lifestyle-tags">
-                    <span class="pathya">Favor: Ginger Tea</span>
-                    <span class="apathya">Avoid: Curd</span>
-                </div>
-                <div class="yoga-list">
-                    <span>🧘 Anulom Vilom</span>
-                    <span>🧘 Bhastrika</span>
-                </div>
-            </div>
+  <main class="container" role="main">
+    <!-- Diagnostic Entry -->
+    <section class="card card-lg" aria-labelledby="diag-title">
+      <div class="card-head">
+        <div>
+          <h1 id="diag-title" class="h1">Diagnostic Entry</h1>
+          <p class="subtle">Enter a narrative symptom description. Entities are detected in real time.</p>
         </div>
 
-        <div class="footer-grid">
-            <div class="card prognosis-card">
-                <label>Prognosis: Tamaka Shvasa</label>
-                <div class="progress-container">
-                    <div class="progress-bar"></div>
-                </div>
-                <span class="status-text">Yapya (Manageable)</span>
-            </div>
-            
-            <div class="alert-box">
-                <div class="alert-header">
-                    <i data-lucide="alert-circle"></i>
-                    <h4>Critical Alerts</h4>
-                </div>
-                <p>Blue lips/nails, confusion, severe breathlessness at rest.</p>
-            </div>
+        <div class="card-actions">
+          <button id="btnClear" class="btn btn-ghost" type="button" aria-label="Clear input">
+            Clear
+          </button>
         </div>
-        
-        <p class="disclaimer"><i>This interface is for educational use; a qualified Ayurvedic practitioner must be consulted.</i></p>
-    </main>
+      </div>
 
-    <script src="script.js"></script>
+      <div class="diag-grid">
+        <div class="diag-input">
+          <label class="label" for="symptoms">Symptom Narrative</label>
+          <textarea id="symptoms" class="textarea" rows="7"
+            placeholder="Describe patient symptoms in natural language… e.g., “I had wheezing and difficulty breathing yesterday.”"></textarea>
+
+          <div class="hint-row">
+            <span class="chip chip-sage" aria-hidden="true">NLP</span>
+            <span class="hint">Tip: include timing, severity, and context.</span>
+          </div>
+        </div>
+
+        <aside class="entity-panel" aria-labelledby="entity-title">
+          <div class="entity-head">
+            <div class="entity-title-wrap">
+              <h2 id="entity-title" class="h2">Entity Detection</h2>
+              <span class="badge" id="modelBadge" aria-label="Model style badge">Bio_ClinicalBERT style</span>
+            </div>
+            <div class="entity-meta">
+              <span class="dot dot-live" aria-hidden="true"></span>
+              <span id="liveStatus" class="small">Live</span>
+            </div>
+          </div>
+
+          <div class="pill-wrap" id="entityPills" aria-live="polite" aria-label="Detected entities">
+            <!-- Pills injected by JS -->
+          </div>
+
+          <div class="token-box" aria-label="Token highlight visualization">
+            <div class="token-head">
+              <span class="small subtle">Token highlights</span>
+              <span class="small" id="tokenCount">0 tokens</span>
+            </div>
+            <div class="token-stream" id="tokenStream">
+              <!-- Token chips injected by JS -->
+            </div>
+          </div>
+
+          <div class="panel-foot">
+            <div class="small subtle">Confidence is simulated for demo UI.</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Clinical Mapping -->
+    <section id="mapping" class="card" aria-labelledby="map-title">
+      <div class="card-head">
+        <div>
+          <h2 id="map-title" class="h1">Clinical Mapping</h2>
+          <p class="subtle">Bridging modern clinical terminology with traditional Ayurvedic knowledge.</p>
+        </div>
+      </div>
+
+      <div class="bridge">
+        <div class="bridge-node">
+          <div class="kicker">SNOMED CT</div>
+          <div class="code" id="snomedCode">267036007</div>
+          <div class="small subtle" id="snomedLabel">Respiratory distress (example)</div>
+        </div>
+
+        <div class="bridge-mid" aria-hidden="true">
+          <svg viewBox="0 0 96 24" class="bridge-arrow" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 12h72" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M70 4l20 8-20 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="bridge-tag">Ontology Bridge</div>
+        </div>
+
+        <div class="bridge-node">
+          <div class="kicker">Ayurvedic ITA</div>
+          <div class="code" id="itaCode">ITA-5.20.1</div>
+          <div class="small subtle" id="itaLabel">Śvāsaḥ</div>
+        </div>
+      </div>
+
+      <div class="patho">
+        <div class="patho-head">
+          <h3 class="h2">Pathogenesis</h3>
+          <span class="small subtle">Conceptual flow</span>
+        </div>
+
+        <div class="flow" id="pathoFlow" aria-label="Pathogenesis flow">
+          <div class="flow-node">
+            <div class="flow-icon" aria-hidden="true">
+              <!-- dosha icon -->
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2c3 3 5 6 5 9a5 5 0 1 1-10 0c0-3 2-6 5-9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="flow-text">
+              <div class="flow-title" id="doshaNode">Vata ↑ + Kapha ↑</div>
+              <div class="small subtle">Dosha aggravation</div>
+            </div>
+          </div>
+
+          <div class="flow-arrow" aria-hidden="true">→</div>
+
+          <div class="flow-node">
+            <div class="flow-icon" aria-hidden="true">
+              <!-- lungs icon -->
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M11 11c-3-2-6-2-7 2-1 5 2 8 6 8V11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M13 11c3-2 6-2 7 2 1 5-2 8-6 8V11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="flow-text">
+              <div class="flow-title" id="srotasNode">Prāṇavaha Srotas</div>
+              <div class="small subtle">Affected channel</div>
+            </div>
+          </div>
+
+          <div class="flow-arrow" aria-hidden="true">→</div>
+
+          <div class="flow-node">
+            <div class="flow-icon" aria-hidden="true">
+              <!-- pulse/condition icon -->
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2 13h5l2-4 3 10 3-7 2 3h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="flow-text">
+              <div class="flow-title" id="conditionNode">Śvāsa</div>
+              <div class="small subtle">Clinical manifestation</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="patho-note small subtle" id="pathoNote">
+          Hover nodes for emphasis. This is a conceptual representation for education.
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Grid -->
+    <section id="treatment" class="bento" aria-label="Treatment sections">
+      <article class="card bento-a" aria-labelledby="nidana-title">
+        <div class="card-head">
+          <h2 id="nidana-title" class="h1">Nidāna &amp; Rūpa</h2>
+        </div>
+
+        <div class="content">
+          <h3 class="h2">Root Causes (Nidāna)</h3>
+          <ul class="list">
+            <li><span class="dot dot-sage" aria-hidden="true"></span> Exposure to cold/dry air; irregular routines (Vata-provoking).</li>
+            <li><span class="dot dot-sage" aria-hidden="true"></span> Heavy, mucous-forming diet; sedentary habits (Kapha-provoking).</li>
+            <li><span class="dot dot-sage" aria-hidden="true"></span> Environmental irritants (smoke, dust) and poor sleep.</li>
+          </ul>
+
+          <h3 class="h2">Symptoms (Rūpa)</h3>
+          <ul class="list" id="rupaList">
+            <li><span class="dot dot-sage" aria-hidden="true"></span> Dyspnea / shortness of breath</li>
+            <li><span class="dot dot-sage" aria-hidden="true"></span> Wheeze, chest tightness</li>
+            <li><span class="dot dot-sage" aria-hidden="true"></span> Cough, difficulty speaking full sentences</li>
+          </ul>
+
+          <div class="callout">
+            <div class="callout-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2l10 18H2L12 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M12 9v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M12 17h.01" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <div class="callout-title">Clinical note</div>
+              <div class="small subtle">Treat this as decision support—confirm with clinical evaluation and local guidelines.</div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card bento-b" aria-labelledby="med-title">
+        <div class="card-head">
+          <h2 id="med-title" class="h1">Medicinal Interventions</h2>
+        </div>
+
+        <div class="content">
+          <div class="table-wrap" role="region" aria-label="Medicinal interventions table" tabindex="0">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">Dravya / Formulation</th>
+                  <th scope="col">Indication</th>
+                  <th scope="col">Dose / Notes</th>
+                </tr>
+              </thead>
+              <tbody id="medTableBody">
+                <tr>
+                  <td>Vāsā (Adhatoda vasica)</td>
+                  <td>Wheeze, cough</td>
+                  <td>Supportive; monitor response</td>
+                </tr>
+                <tr>
+                  <td>Yaṣṭimadhu (Licorice)</td>
+                  <td>Throat irritation</td>
+                  <td>Avoid if contraindicated</td>
+                </tr>
+                <tr>
+                  <td>Tālīsādi Cūrṇa</td>
+                  <td>Kapha congestion</td>
+                  <td>Adjunct; hydration advised</td>
+                </tr>
+                <tr>
+                  <td>Śvāsakuṭhāra Rasa</td>
+                  <td>Severe episodes</td>
+                  <td>Only under qualified supervision</td>
+                </tr>
+                <tr>
+                  <td>Trikaṭu</td>
+                  <td>Digestive support</td>
+                  <td>Use cautiously in gastritis/GERD</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="small subtle table-foot">
+            Table content is illustrative. Use verified pharmacopeia references for clinical use.
+          </div>
+        </div>
+      </article>
+
+      <article class="card bento-c" aria-labelledby="therapy-title">
+        <div class="card-head">
+          <h2 id="therapy-title" class="h1">Therapies &amp; Lifestyle</h2>
+        </div>
+
+        <div class="content">
+          <div class="split">
+            <div>
+              <h3 class="h2">Therapies</h3>
+              <ul class="icon-list">
+                <li>
+                  <span class="icon" aria-hidden="true">
+                    <!-- herb icon -->
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 21c5 0 9-4 9-9-4 0-7 1-9 3-2-2-5-3-9-3 0 5 4 9 9 9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                      <path d="M12 15V6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M12 6c0-2 2-3 4-3 0 2-1 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                  <span>Śamana (supportive) measures</span>
+                </li>
+                <li>
+                  <span class="icon" aria-hidden="true">
+                    <!-- oil drop -->
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2c4 5 6 8 6 12a6 6 0 1 1-12 0c0-4 2-7 6-12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                  <span>Snehana (as clinically appropriate)</span>
+                </li>
+                <li>
+                  <span class="icon" aria-hidden="true">
+                    <!-- yoga icon -->
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 6a2 2 0 1 0-0.001 0z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M6 21c2-5 4-7 6-7s4 2 6 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M4 12c3-2 6-3 8-3s5 1 8 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                  </span>
+                  <span>Prāṇāyāma (gentle, supervised)</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="doavoid">
+              <h3 class="h2">Pathya / Apathya</h3>
+              <div class="doavoid-grid">
+                <div class="mini-card">
+                  <div class="mini-title">Pathya (Do)</div>
+                  <ul class="mini-list">
+                    <li>Warm fluids; light meals</li>
+                    <li>Steam inhalation (if appropriate)</li>
+                    <li>Rest and regulated sleep</li>
+                  </ul>
+                </div>
+                <div class="mini-card mini-card-warn">
+                  <div class="mini-title">Apathya (Avoid)</div>
+                  <ul class="mini-list">
+                    <li>Cold beverages and ice</li>
+                    <li>Dust/smoke exposure</li>
+                    <li>Late-night meals</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="small subtle">
+            Lifestyle recommendations must be individualized and clinically appropriate.
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- Safety / Footer -->
+    <section id="alerts" class="safety" aria-label="Safety layer">
+      <div class="card">
+        <div class="card-head">
+          <h2 class="h1">Prognosis &amp; Safety</h2>
+        </div>
+
+        <div class="prognosis">
+          <div class="kicker">Prognosis</div>
+          <div class="segbar" role="img" aria-label="Prognosis status bar">
+            <div class="seg seg-good" id="segYapya">Yāpya</div>
+            <div class="seg seg-bad" id="segAsadhya">Asādhya</div>
+            <div class="seg-indicator" id="progIndicator" aria-hidden="true"></div>
+          </div>
+          <div class="small subtle" id="progText">Status: Yāpya (supportable/managed) — example.</div>
+        </div>
+
+        <div class="alerts-grid">
+          <div class="alert-box" role="region" aria-label="Critical alerts">
+            <div class="alert-head">
+              <div class="alert-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2l10 18H2L12 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M12 9v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M12 17h.01" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div>
+                <div class="alert-title">Critical Alerts</div>
+                <div class="small subtle">Red-flag symptoms</div>
+              </div>
+            </div>
+            <ul class="alert-list" id="alertList">
+              <li>Severe difficulty breathing or cyanosis</li>
+              <li>Chest pain, fainting, or confusion</li>
+              <li>Rapid worsening despite care</li>
+            </ul>
+          </div>
+
+          <div class="disclaimer">
+            <div class="kicker">Educational Disclaimer</div>
+            <p class="disclaimer-text">
+              <em>This interface is for educational decision support and does not replace professional medical judgment,
+              diagnosis, or treatment. Validate all recommendations with qualified clinicians and authoritative references.</em>
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-footer" role="contentinfo">
+      <div class="small subtle">© <span id="year"></span> AyurAssist — calm, structured, interoperable.</div>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
 </body>
 </html>
