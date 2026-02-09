@@ -1,88 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AyurAssist - Ayurveda SNOMED Knowledge Portal</title>
-  <meta name="description" content="Connect modern symptoms to traditional Ayurvedic terminology using AI-powered clinical decision support">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AyurAssist | Clinical Decision Support</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main>
-    <div class="container">
-
-      <!-- Header -->
-      <div class="header">
-        <div class="header-tag">WHO ITA &middot; SNOMED CT</div>
-        <h1 class="header-title">AyurAssist</h1>
-        <p class="header-subtitle">AI-Powered Ayurveda Clinical Decision Support</p>
-      </div>
-
-      <!-- Pipeline Diagram -->
-      <div class="pipeline">
-        <div class="pipeline-step">
-          <span class="pipeline-icon">💬</span>
-          <span class="pipeline-label">Symptom Input</span>
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <i data-lucide="leaf" class="icon-gold"></i>
+                <h1>AyurAssist</h1>
+            </div>
+            <div class="toggle-container">
+                <span>Clinical Mode</span>
+                <div class="switch"></div>
+            </div>
         </div>
-        <div class="pipeline-arrow">&rarr;</div>
-        <div class="pipeline-step">
-          <span class="pipeline-icon">🧠</span>
-          <span class="pipeline-label">Biomedical NER</span>
+    </header>
+
+    <main class="main-container">
+        <section class="card diagnostic-card">
+            <div class="card-header">
+                <i data-lucide="brain-circuit"></i>
+                <h2>Diagnostic Entry</h2>
+            </div>
+            <textarea id="symptomInput" placeholder="Enter patient symptoms (e.g., 'difficulty breathing and wheezing')..."></textarea>
+            <div id="entityOverlay" class="entity-container">
+                </div>
+        </section>
+
+        <section id="mappingCard" class="card mapping-card hidden">
+            <div class="mapping-grid">
+                <div class="mapping-brand">
+                    <span class="standard-label">SNOMED CT: 267036007</span>
+                    <h3 class="sanskrit-title">Śvašah (Dyspnoea)</h3>
+                    <small>Standard: ITA-5.20.1</small>
+                </div>
+                <div class="pathogenesis-flow">
+                    <label>Pathogenesis (Samprapti)</label>
+                    <div class="flow-steps">
+                        <span>Vata & Kapha</span>
+                        <i data-lucide="arrow-right"></i>
+                        <span>Pranavaha Srotas</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="bento-grid">
+            <div class="card grid-item">
+                <h3><i data-lucide="activity"></i> Nidaña & Rupa</h3>
+                <div class="list-section">
+                    <strong>Root Causes:</strong>
+                    <p>Cold exposure, dust, Kapha diet.</p>
+                    <strong>Symptoms:</strong>
+                    <p>Chest tightness, cough, restlessness.</p>
+                </div>
+            </div>
+
+            <div class="card grid-item span-two">
+                <h3><i data-lucide="beaker"></i> Medicinal Interventions</h3>
+                <table class="med-table">
+                    <thead>
+                        <tr>
+                            <th>Remedy Type</th>
+                            <th>Treatment</th>
+                            <th>Preparation & Dosage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Ottamooli</td>
+                            <td>Vasa (Malabar Nut)</td>
+                            <td>10–20 ml juice with honey</td>
+                        </tr>
+                        <tr>
+                            <td>Classical</td>
+                            <td>Śvašakuthara Rasa</td>
+                            <td>125–250 mg with honey</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card grid-item">
+                <h3><i data-lucide="sparkles"></i> Therapies & Lifestyle</h3>
+                <div class="lifestyle-tags">
+                    <span class="pathya">Favor: Ginger Tea</span>
+                    <span class="apathya">Avoid: Curd</span>
+                </div>
+                <div class="yoga-list">
+                    <span>🧘 Anulom Vilom</span>
+                    <span>🧘 Bhastrika</span>
+                </div>
+            </div>
         </div>
-        <div class="pipeline-arrow">&rarr;</div>
-        <div class="pipeline-step">
-          <span class="pipeline-icon">🔗</span>
-          <span class="pipeline-label">UMLS + WHO ITA</span>
+
+        <div class="footer-grid">
+            <div class="card prognosis-card">
+                <label>Prognosis: Tamaka Shvasa</label>
+                <div class="progress-container">
+                    <div class="progress-bar"></div>
+                </div>
+                <span class="status-text">Yapya (Manageable)</span>
+            </div>
+            
+            <div class="alert-box">
+                <div class="alert-header">
+                    <i data-lucide="alert-circle"></i>
+                    <h4>Critical Alerts</h4>
+                </div>
+                <p>Blue lips/nails, confusion, severe breathlessness at rest.</p>
+            </div>
         </div>
-        <div class="pipeline-arrow">&rarr;</div>
-        <div class="pipeline-step">
-          <span class="pipeline-icon">🏥</span>
-          <span class="pipeline-label">SNOMED CT</span>
-        </div>
-        <div class="pipeline-arrow">&rarr;</div>
-        <div class="pipeline-step">
-          <span class="pipeline-icon">🌿</span>
-          <span class="pipeline-label">AyurParam</span>
-        </div>
-      </div>
+        
+        <p class="disclaimer"><i>This interface is for educational use; a qualified Ayurvedic practitioner must be consulted.</i></p>
+    </main>
 
-      <!-- Search Card -->
-      <div class="search-card">
-        <h2 class="search-title">Describe your symptoms</h2>
-        <p class="search-subtitle">Enter symptoms &mdash; AI will analyze with Biomedical NER &amp; AyurParam</p>
-
-        <div class="examples" id="examples">
-          <button class="example-btn" data-value="headache">headache</button>
-          <button class="example-btn" data-value="stomach pain">stomach pain</button>
-          <button class="example-btn" data-value="fever">fever</button>
-          <button class="example-btn" data-value="loss of appetite">loss of appetite</button>
-          <button class="example-btn" data-value="cough">cough</button>
-        </div>
-
-        <div class="input-row">
-          <input type="text" id="symptomInput" placeholder="e.g., I have severe headache and nausea" autocomplete="off">
-          <button id="analyzeBtn" disabled>Analyze</button>
-        </div>
-      </div>
-
-      <!-- Loading -->
-      <div id="loading" class="loading hidden">
-        <div class="spinner"></div>
-        <p>AI is analyzing... This may take 30-90s</p>
-      </div>
-
-      <!-- Error -->
-      <div id="error" class="error-alert hidden"></div>
-
-      <!-- Results -->
-      <div id="results" class="results hidden"></div>
-
-    </div>
-  </main>
-
-  <script src="app.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
