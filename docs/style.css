@@ -45,14 +45,34 @@ h1, h2, h3, .sanskrit-title {
 .clinical-badge { background: var(--forest); color: white; padding: 4px 12px; border-radius: 50px; font-size: 12px; }
 
 /* Cards */
+/* Update your .card class to handle dynamic content better */
 .card {
     background: var(--white);
     border-radius: 20px;
     padding: 24px;
     margin-bottom: 20px;
-    box-shadow: 0 10px 25px rgba(65, 100, 34, 0.05);
-    border: 1px solid rgba(65, 100, 34, 0.08);
-    height: auto; /* Fix for clipping */
+    box-shadow: 0 10px 30px rgba(65, 100, 34, 0.05);
+    border: 1px solid rgba(65, 100, 34, 0.05);
+    /* Ensure height isn't fixed */
+    height: auto; 
+    display: flex;
+    flex-direction: column;
+}
+
+/* Add this to style the text blocks inside the Nidaña section */
+.list-section p {
+    margin: 8px 0 16px 0;
+    line-height: 1.5;
+    /* This prevents text from being cut off if it wraps */
+    word-wrap: break-word; 
+}
+
+/* Improvement for the small badges/tags */
+.lifestyle-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 15px;
 }
 
 /* Diagnostic Input */
