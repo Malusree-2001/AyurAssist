@@ -6,31 +6,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const entityOverlay = document.getElementById('entityOverlay');
     const mappingCard = document.getElementById('mappingCard');
 
-    // Simulated NER (Named Entity Recognition) Mapping
-    const clinicalMap = {
-        'breathing': 'Breathing: 98% (Sign)',
-        'wheezing': 'Wheezing: 96% (Sign)',
-        'chest': 'Chest Tightness: 92% (Symptom)',
-        'cough': 'Cough: 85% (Symptom)'
+    const keywords = {
+        'breathing': 'Breathing: 98%',
+        'wheezing': 'Wheezing: 96%',
+        'breath': 'Dyspnoea: 80%'
     };
 
     symptomInput.addEventListener('input', (e) => {
-        const val = e.target.value.toLowerCase();
+        const text = e.target.value.toLowerCase();
         entityOverlay.innerHTML = '';
-        let foundAny = false;
+        let found = false;
 
-        for (const [key, label] of Object.entries(clinicalMap)) {
-            if (val.includes(key)) {
+        for (const [key, value] of Object.entries(keywords)) {
+            if (text.includes(key)) {
                 const pill = document.createElement('span');
-                pill.className = 'pill-detect';
-                pill.innerText = label;
+                pill.className = 'pill';
+                pill.innerText = value;
                 entityOverlay.appendChild(pill);
-                foundAny = true;
+                found = true;
             }
         }
 
-        // Show the bridge card if relevant symptoms are found
-        if (foundAny) {
+        // Show mapping card if keywords detected
+        if (found) {
             mappingCard.classList.remove('hidden');
         } else {
             mappingCard.classList.add('hidden');
