@@ -16,8 +16,7 @@
                 <h1>AyurAssist</h1>
             </div>
             <div class="toggle-container">
-                <span>Clinical Mode</span>
-                <div class="switch"></div>
+                <span class="clinical-badge">Clinical Mode</span>
             </div>
         </div>
     </header>
@@ -25,7 +24,7 @@
     <main class="main-container">
         <section class="card diagnostic-card">
             <div class="card-header">
-                <i data-lucide="brain-circuit"></i>
+                <i data-lucide="brain-circuit" class="icon-green"></i>
                 <h2>Diagnostic Entry</h2>
             </div>
             <textarea id="symptomInput" placeholder="Enter patient symptoms (e.g., 'difficulty breathing and wheezing')..."></textarea>
@@ -44,7 +43,7 @@
                     <label>Pathogenesis (Samprapti)</label>
                     <div class="flow-steps">
                         <span>Vata & Kapha</span>
-                        <i data-lucide="arrow-right"></i>
+                        <i data-lucide="chevron-right"></i>
                         <span>Pranavaha Srotas</span>
                     </div>
                 </div>
@@ -53,49 +52,63 @@
 
         <div class="bento-grid">
             <div class="card grid-item">
-                <h3><i data-lucide="activity"></i> Nidaña & Rupa</h3>
-                <div class="list-section">
-                    <strong>Root Causes:</strong>
-                    <p>Cold exposure, dust, Kapha diet.</p>
-                    <strong>Symptoms:</strong>
-                    <p>Chest tightness, cough, restlessness.</p>
+                <h3><i data-lucide="search" class="icon-gold"></i> Root Causes (Nidaña)</h3>
+                <div class="list-group">
+                    <div class="list-item">Exposure to cold/wind and dust inhalation.</div>
+                    <div class="list-item">Kapha-aggravating diets (excessive cold/oily food).</div>
+                </div>
+                <h3 class="mt-20"><i data-lucide="activity"></i> Symptoms (Rupa)</h3>
+                <div class="list-group">
+                    <div class="list-item">Chest tightness and cough with sputum.</div>
+                    <div class="list-item">Inability to speak long sentences.</div>
                 </div>
             </div>
 
             <div class="card grid-item span-two">
                 <h3><i data-lucide="beaker"></i> Medicinal Interventions</h3>
-                <table class="med-table">
-                    <thead>
-                        <tr>
-                            <th>Remedy Type</th>
-                            <th>Treatment</th>
-                            <th>Preparation & Dosage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Ottamooli</td>
-                            <td>Vasa (Malabar Nut)</td>
-                            <td>10–20 ml juice with honey</td>
-                        </tr>
-                        <tr>
-                            <td>Classical</td>
-                            <td>Śvašakuthara Rasa</td>
-                            <td>125–250 mg with honey</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="table-container">
+                    <table class="med-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Treatment</th>
+                                <th>Preparation & Dosage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="pill-small">Ottamooli</span></td>
+                                <td><strong>Vasa (Malabar Nut)</strong></td>
+                                <td>10–20 ml leaf juice with honey twice daily.</td>
+                            </tr>
+                            <tr>
+                                <td><span class="pill-small">Ottamooli</span></td>
+                                <td><strong>Kantakari</strong></td>
+                                <td>30–50 ml decoction of the whole plant.</td>
+                            </tr>
+                            <tr>
+                                <td><span class="pill-small gold">Classical</span></td>
+                                <td><strong>Śvašakuthara Rasa</strong></td>
+                                <td>125–250 mg tablet with honey.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="card grid-item">
-                <h3><i data-lucide="sparkles"></i> Therapies & Lifestyle</h3>
-                <div class="lifestyle-tags">
-                    <span class="pathya">Favor: Ginger Tea</span>
-                    <span class="apathya">Avoid: Curd</span>
+                <h3><i data-lucide="sparkles"></i> Lifestyle & Yoga</h3>
+                <div class="lifestyle-flex">
+                    <div class="tag-box favor">
+                        <strong>Favor:</strong> Warm food, ginger tea, garlic.
+                    </div>
+                    <div class="tag-box avoid">
+                        <strong>Avoid:</strong> Curd, banana, cold drinks.
+                    </div>
                 </div>
-                <div class="yoga-list">
-                    <span>🧘 Anulom Vilom</span>
-                    <span>🧘 Bhastrika</span>
+                <div class="yoga-pills">
+                    <span class="yoga-pill">🧘 Anulom Vilom</span>
+                    <span class="yoga-pill">🧘 Bhastrika</span>
                 </div>
             </div>
         </div>
@@ -103,22 +116,22 @@
         <div class="footer-grid">
             <div class="card prognosis-card">
                 <label>Prognosis: Tamaka Shvasa</label>
-                <div class="progress-container">
-                    <div class="progress-bar"></div>
+                <div class="status-container">
+                    <div class="status-bar" style="width: 70%;"></div>
                 </div>
-                <span class="status-text">Yapya (Manageable)</span>
+                <span class="status-label">Yapya (Manageable)</span>
             </div>
             
             <div class="alert-box">
                 <div class="alert-header">
-                    <i data-lucide="alert-circle"></i>
-                    <h4>Critical Alerts</h4>
+                    <i data-lucide="alert-triangle"></i>
+                    <h4>Critical Red-Flags</h4>
                 </div>
-                <p>Blue lips/nails, confusion, severe breathlessness at rest.</p>
+                <p>Blue discoloration of lips, confusion, severe breathlessness at rest.</p>
             </div>
         </div>
         
-        <p class="disclaimer"><i>This interface is for educational use; a qualified Ayurvedic practitioner must be consulted.</i></p>
+        <p class="disclaimer"><i>Educational use only. Consult a qualified Ayurvedic practitioner before starting treatment.</i></p>
     </main>
 
     <script src="script.js"></script>
