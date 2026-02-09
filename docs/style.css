@@ -4,14 +4,13 @@
     --sage: #A3B18A;
     --gold: #D4AF37;
     --white: #FFFFFF;
-    --red-bg: #fdf2f2;
-    --red-text: #9b1c1c;
-    --text-main: #2C3E50;
+    --alert-red: #fde8e8;
+    --text-dark: #2d3436;
 }
 
 body {
     background-color: var(--cream);
-    color: var(--text-main);
+    color: var(--text-dark);
     font-family: 'Inter', sans-serif;
     margin: 0;
     padding: 0;
@@ -21,11 +20,10 @@ body {
 h1, h2, h3, .sanskrit-title {
     font-family: 'Playfair Display', serif;
     color: var(--forest);
-    margin: 0 0 15px 0;
 }
 
 .main-container {
-    max-width: 1200px;
+    max-width: 1100px;
     margin: 2rem auto;
     padding: 0 20px;
 }
@@ -35,86 +33,86 @@ h1, h2, h3, .sanskrit-title {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 5%;
+    padding: 1.5rem 2rem;
     background: var(--white);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+    border-bottom: 1px solid rgba(65, 100, 34, 0.1);
 }
 
-.logo { display: flex; align-items: center; gap: 12px; }
+.logo { display: flex; align-items: center; gap: 10px; }
 .icon-gold { color: var(--gold); }
-.clinical-badge { background: var(--forest); color: white; padding: 4px 12px; border-radius: 50px; font-size: 12px; }
 
-/* Cards */
-/* Update your .card class to handle dynamic content better */
 .card {
-    background: var(--white);
-    border-radius: 20px;
-    padding: 24px;
-    margin-bottom: 20px;
-    box-shadow: 0 10px 30px rgba(65, 100, 34, 0.05);
-    border: 1px solid rgba(65, 100, 34, 0.05);
-    /* Ensure height isn't fixed */
-    height: auto; 
-    display: flex;
-    flex-direction: column;
+    background: #FFFFFF;
+    border-radius: 18px;
+    padding: 30px; /* Increased padding to prevent content clipping */
+    margin-bottom: 24px;
+    border: 1px solid #EAE8E0; /* Subtle border seen in your screenshot */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); /* Very light shadow */
+    width: 100%;
+    box-sizing: border-box; /* Ensures padding doesn't break the width */
 }
 
-/* Add this to style the text blocks inside the Nidaña section */
-.list-section p {
-    margin: 8px 0 16px 0;
-    line-height: 1.5;
-    /* This prevents text from being cut off if it wraps */
-    word-wrap: break-word; 
-}
-
-/* Improvement for the small badges/tags */
-.lifestyle-tags {
+/* For the "Description" header style with the icon */
+.card-header-alt {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    align-items: center;
+    gap: 12px;
     margin-bottom: 15px;
 }
 
+/* The subtle grey/tan tags at the bottom (like the ICD-10 tag) */
+.meta-tag {
+    display: inline-flex;
+    align-items: center;
+    background-color: #F1F0EA;
+    color: #7A7A7A;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    margin-top: 15px;
+}
 /* Diagnostic Input */
 textarea {
     width: 100%;
-    height: 100px;
-    border: 1px solid #E5E7EB;
+    height: 120px;
+    border: 1px solid #e0e0e0;
     border-radius: 12px;
     padding: 15px;
     font-size: 1rem;
-    font-family: inherit;
     resize: none;
-    box-sizing: border-box;
+    margin-top: 10px;
+    outline-color: var(--sage);
 }
 
 .entity-container {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 12px;
+    gap: 10px;
+    margin-top: 15px;
+    min-height: 32px;
 }
 
-.pill-detect {
+.pill {
     background: var(--sage);
     color: var(--forest);
     padding: 6px 14px;
-    border-radius: 50px;
+    border-radius: 20px;
     font-size: 12px;
     font-weight: 600;
 }
 
-/* List Items (Screenshot Fix) */
-.list-item {
-    background: #F4F2EA;
-    padding: 12px 18px;
-    border-radius: 12px;
-    margin-bottom: 10px;
-    font-size: 14px;
-    border: 1px solid rgba(65,100,34,0.05);
-    line-height: 1.4;
-    height: auto; /* Ensures it expands for long text */
+/* Mapping Card */
+.mapping-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f4f6f1 100%);
+    border-left: 5px solid var(--gold);
 }
+
+.mapping-grid {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hidden { display: none; }
 
 /* Bento Grid */
 .bento-grid {
@@ -122,31 +120,47 @@ textarea {
     grid-template-columns: 1fr 1fr;
     gap: 20px;
 }
+
 .span-two { grid-column: span 2; }
 
-/* Tables */
-.table-container { overflow-x: auto; }
-.med-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-.med-table th { text-align: left; padding: 12px; border-bottom: 2px solid var(--cream); color: var(--forest); }
-.med-table td { padding: 12px; border-bottom: 1px solid var(--cream); font-size: 14px; }
+/* Table */
+.med-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
 
-.pill-small { background: #EEF2E6; color: var(--forest); padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-.pill-small.gold { background: #FEF9C3; color: #854d0e; }
+.med-table th {
+    text-align: left;
+    color: var(--forest);
+    padding: 12px;
+    border-bottom: 2px solid var(--cream);
+}
+
+.med-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--cream);
+}
 
 /* Alerts */
 .alert-box {
-    background: var(--red-bg);
-    border-left: 5px solid var(--red-text);
+    background: var(--alert-red);
+    border-left: 4px solid #c0392b;
     padding: 20px;
     border-radius: 15px;
 }
-.alert-header { display: flex; align-items: center; gap: 10px; color: var(--red-text); margin-bottom: 8px; }
 
-/* Utilities */
-.hidden { display: none; }
-.mt-20 { margin-top: 20px; }
+.alert-header { display: flex; align-items: center; gap: 8px; color: #c0392b; }
 
+.disclaimer {
+    text-align: center;
+    font-size: 12px;
+    color: #95a5a6;
+    margin-top: 40px;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-    .bento-grid { grid-template-columns: 1fr; }
+    .bento-grid, .mapping-grid { grid-template-columns: 1fr; }
     .span-two { grid-column: span 1; }
 }
