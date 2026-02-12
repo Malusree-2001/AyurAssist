@@ -120,7 +120,7 @@ class LLMEngine:
 
 
 # ===================================================================
-# Helper functions (no CSV; UMLS + AyurParam only)
+# Helper functions (no CSV; NER + UMLS + AyurParam only)
 # ===================================================================
 
 def _lookup_umls_snomed(api_key, keyword):
@@ -267,56 +267,51 @@ def _build_treatment_from_responses(responses, condition, sanskrit):
     }
 
 
-async def _get_ranked_ayur_diagnoses(llm, entities):
-    """Ask AyurParam for primary + secondary diagnoses in JSON."""
+async def _get_modern_diagnosis(llm, entities):
+    """Use AyurParam to pick a single modern (Western) diagnosis from symptoms."""
     symptom_list = ", ".join(entities) if entities else "no clear entities"
     prompt = f"""<user>
 Patient presents with these symptoms: {symptom_list}
 
-From an Ayurvedic perspective, list the most likely diagnoses in order of priority.
-Return them in this JSON format only:
-
-{{
-  "primary": "<primary Ayurvedic diagnosis>",
-  "secondary": ["<second diagnosis>", "<third diagnosis>"]
-}}
-
-Only include diagnoses if you are reasonably confident. Do not add explanations.
-<assistant>"""
-    resp = await llm.generate.remote.aio(prompt)
-    primary = ""
-    secondary = []
-    try:
-        data = json.loads(resp)
-        primary = (data.get("primary") or "").strip()
-        secondary = [d.strip() for d in data.get("secondary", []) if d.strip()]
-    except Exception as e:
-        print(f"Diagnosis JSON parse error, using raw response: {e}")
-        primary = resp.strip()
-        secondary = []
-    return primary, secondary
-
-
-async def _translate_ayurvedic_to_english(llm, ayurvedic_term):
-    """Map an Ayurvedic term to a single modern English disease name."""
-    prompt = f"""<user>
-What is the modern medical English equivalent or closest diagnosis for this Ayurvedic condition: {ayurvedic_term}
-
-Answer with ONLY ONE standard English medical term that would appear in ICD-10 or SNOMED CT (1-3 words), without 'or', 'and', commas, slashes, or explanations.
+From a modern Western medical perspective, what is the single most likely diagnosis?
+Answer with ONLY ONE standard English disease name (1-4 words) that would appear in ICD-10 or SNOMED CT, no 'or', 'and', commas, or explanations.
 
 Examples:
-Ardhavabhedaka -> Migraine
-Amavata -> Rheumatoid arthritis
-Madhumeha -> Diabetes mellitus
-Kasa -> Cough
-Jwara -> Fever
+- severe unilateral headache with nausea and vomiting -> Migraine
+- chronic joint pain with swelling in small joints of hands -> Rheumatoid arthritis
+- frequent urination, excessive thirst, weight loss -> Diabetes mellitus
+- burning urination with fever and flank pain -> Acute pyelonephritis
 
-Now give just the single modern term:
+Now give just the single modern diagnosis:
 <assistant>"""
     resp = await llm.generate.remote.aio(prompt)
     text = resp.strip()
+    for sep in [",", " or ", " and ", ";", "/", "|"]:
+        if sep in text:
+            text = text.split(sep)[0]
+    return text.strip()
 
-    # Hard post-processing: keep only first part before separators
+
+async def _modern_to_ayurvedic(llm, modern_dx):
+    """Map a modern diagnosis to a single Ayurvedic disease term."""
+    prompt = f"""<user>
+Map this modern medical diagnosis to the most accurate single Ayurvedic disease name (roga):
+
+Diagnosis: {modern_dx}
+
+Answer with ONLY ONE Ayurvedic term (Sanskrit/IAST or standard Ayurvedic English term) that best corresponds to this diagnosis, no explanations.
+
+Examples:
+- Migraine -> Ardhavabhedaka
+- Rheumatoid arthritis -> Amavata
+- Diabetes mellitus -> Madhumeha
+- Irritable bowel syndrome -> Grahani
+- Chronic sinusitis -> Peenasa
+
+Now map: {modern_dx}
+<assistant>"""
+    resp = await llm.generate.remote.aio(prompt)
+    text = resp.strip()
     for sep in [",", " or ", " and ", ";", "/", "|"]:
         if sep in text:
             text = text.split(sep)[0]
@@ -398,7 +393,7 @@ def fastapi_app():
 
             st = request.app.state
 
-            # 1. NER → entities
+            # 1. NER → entities (symptoms)
             entities = []
             try:
                 doc = await asyncio.to_thread(st.ner, user_input)
@@ -415,35 +410,30 @@ def fastapi_app():
 
             llm = LLMEngine()
 
-            # 2. AyurParam → primary + secondary Ayurvedic diagnoses
+            # 2. AyurParam → modern diagnosis (single English term)
             try:
-                primary_ayur, secondary_ayur_list = await _get_ranked_ayur_diagnoses(llm, entity_words)
+                modern_diagnosis = await _get_modern_diagnosis(llm, entity_words)
             except Exception as e:
-                print(f"AyurParam diagnosis error: {e}")
-                primary_ayur = user_input
-                secondary_ayur_list = []
+                print(f"Modern diagnosis error: {e}")
+                modern_diagnosis = ""
 
-            ayurvedic_diagnosis = primary_ayur or user_input
+            modern_term_for_umls = (modern_diagnosis or entity_words[0] or user_input).strip()
+            print(f"Modern diagnosis for UMLS: '{modern_term_for_umls}'")
 
-            # 3. AyurParam → english_equivalent (single term) for primary only
-            try:
-                english_equivalent = await _translate_ayurvedic_to_english(llm, ayurvedic_diagnosis)
-            except Exception as e:
-                print(f"AyurParam translation error: {e}")
-                english_equivalent = ayurvedic_diagnosis
-
-            english_term_for_umls = english_equivalent.strip() or ayurvedic_diagnosis
-            print(f"UMLS lookup term (English): '{english_term_for_umls}'")
-
-            # 4. UMLS → umls_cui, snomed_code (using primary English term)
+            # 3. UMLS → CUI, SNOMED, ICD10CM using modern diagnosis
             umls_cui, snomed_code = _lookup_umls_snomed(
-                st.umls_api_key, english_term_for_umls
+                st.umls_api_key, modern_term_for_umls
             )
-
-            # 4b. ICD10CM from CUI
             icd10cm_code = _lookup_icd10cm_from_cui(st.umls_api_key, umls_cui)
 
-            # 5. AyurParam → 6-question treatment using primary Ayurvedic diagnosis
+            # 4. Modern diagnosis → Ayurvedic diagnosis
+            try:
+                ayurvedic_diagnosis = await _modern_to_ayurvedic(llm, modern_term_for_umls)
+            except Exception as e:
+                print(f"Modern→Ayurvedic mapping error: {e}")
+                ayurvedic_diagnosis = modern_term_for_umls
+
+            # 5. AyurParam → 6-question treatment using Ayurvedic diagnosis
             questions = _build_questions(
                 condition=ayurvedic_diagnosis,
                 sanskrit="",
@@ -469,12 +459,11 @@ def fastapi_app():
             return {
                 "input_text": user_input,
                 "clinical_entities": entities if entities else [{"word": user_input, "score": 1.0}],
-                "ayurvedic_diagnosis": ayurvedic_diagnosis,
-                "secondary_ayurvedic_diagnoses": secondary_ayur_list,
-                "english_equivalent": english_equivalent,
+                "modern_diagnosis": modern_diagnosis,
                 "umls_cui": umls_cui,
                 "snomed_code": snomed_code,
                 "icd10cm_code": icd10cm_code,
+                "ayurvedic_diagnosis": ayurvedic_diagnosis,
                 "treatment_info": treatment,
             }
         except HTTPException:
