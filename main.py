@@ -135,12 +135,7 @@ def _lookup_umls_snomed(api_key, keyword):
     # Step 1: keyword -> CUI
     try:
         params = {"string": keyword, "apiKey": api_key, "returnIdType": "concept"}
-        r = requests.get(UMLS_SEARCH_URL, params=params, timeout=ULS_REQUEST_TIMEOUT)
-    except NameError:
-        # fix typo if needed
-        import requests as _req
-        r = _req.get(UMLS_SEARCH_URL, params=params, timeout=UMLS_REQUEST_TIMEOUT)
-    try:
+        r = requests.get(UMLS_SEARCH_URL, params=params, timeout=UMLS_REQUEST_TIMEOUT)
         if r.status_code == 200:
             results = r.json().get("result", {}).get("results", [])
             if results:
@@ -153,9 +148,8 @@ def _lookup_umls_snomed(api_key, keyword):
         return umls_cui, snomed_code
 
     # Step 2: CUI -> SNOMED code via atoms
-    import requests as rq2
     try:
-        r2 = rq2.get(
+        r2 = requests.get(
             UMLS_ATOMS_URL_TEMPLATE.format(cui=umls_cui),
             params={
                 "apiKey": api_key,
@@ -304,11 +298,12 @@ Only include diagnoses if you are reasonably confident. Do not add explanations.
 
 
 async def _translate_ayurvedic_to_english(llm, ayurvedic_term):
-    """Use AyurParam to map an Ayurvedic term to a modern English disease name."""
+    """Map an Ayurvedic term to a single modern English disease name."""
     prompt = f"""<user>
 What is the modern medical English equivalent or closest diagnosis for this Ayurvedic condition: {ayurvedic_term}
 
-Answer with ONLY the standard English medical term that would appear in ICD-10 or SNOMED CT (1-3 words).
+Answer with ONLY ONE standard English medical term that would appear in ICD-10 or SNOMED CT (1-3 words), without 'or', 'and', commas, slashes, or explanations.
+
 Examples:
 Ardhavabhedaka -> Migraine
 Amavata -> Rheumatoid arthritis
@@ -316,10 +311,16 @@ Madhumeha -> Diabetes mellitus
 Kasa -> Cough
 Jwara -> Fever
 
-Now give just the modern term:
+Now give just the single modern term:
 <assistant>"""
     resp = await llm.generate.remote.aio(prompt)
-    return resp.strip()
+    text = resp.strip()
+
+    # Hard post-processing: keep only first part before separators
+    for sep in [",", " or ", " and ", ";", "/", "|"]:
+        if sep in text:
+            text = text.split(sep)[0]
+    return text.strip()
 
 
 # --- ASGI lifespan: loads NER once, kicks off GPU warmup in parallel ---
@@ -424,7 +425,7 @@ def fastapi_app():
 
             ayurvedic_diagnosis = primary_ayur or user_input
 
-            # 3. AyurParam → english_equivalent (for primary only)
+            # 3. AyurParam → english_equivalent (single term) for primary only
             try:
                 english_equivalent = await _translate_ayurvedic_to_english(llm, ayurvedic_diagnosis)
             except Exception as e:
@@ -432,6 +433,7 @@ def fastapi_app():
                 english_equivalent = ayurvedic_diagnosis
 
             english_term_for_umls = english_equivalent.strip() or ayurvedic_diagnosis
+            print(f"UMLS lookup term (English): '{english_term_for_umls}'")
 
             # 4. UMLS → umls_cui, snomed_code (using primary English term)
             umls_cui, snomed_code = _lookup_umls_snomed(
