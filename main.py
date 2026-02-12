@@ -120,7 +120,7 @@ class LLMEngine:
 
 
 # ===================================================================
-# Helper functions (no CSV; NER + UMLS + AyurParam only)
+# Helper functions (NER + UMLS + AyurParam only)
 # ===================================================================
 
 def _lookup_umls_snomed(api_key, keyword):
@@ -274,21 +274,35 @@ async def _get_modern_diagnosis(llm, entities):
 Patient presents with these symptoms: {symptom_list}
 
 From a modern Western medical perspective, what is the single most likely diagnosis?
-Answer with ONLY ONE standard English disease name (1-4 words) that would appear in ICD-10 or SNOMED CT, no 'or', 'and', commas, or explanations.
+
+Rules:
+- Answer with ONLY ONE standard English disease name (1-4 words).
+- It must be something that could appear as a heading in ICD-10 or SNOMED CT.
+- Do NOT include definitions, extra sentences, 'or', 'and', or commas.
+- Just the diagnosis name.
 
 Examples:
-- severe unilateral headache with nausea and vomiting -> Migraine
-- chronic joint pain with swelling in small joints of hands -> Rheumatoid arthritis
-- frequent urination, excessive thirst, weight loss -> Diabetes mellitus
-- burning urination with fever and flank pain -> Acute pyelonephritis
+- "severe unilateral headache with nausea and vomiting" -> "Migraine"
+- "fever, runny nose and sore throat" -> "Common cold"
+- "chronic joint pain with swelling in small joints of hands" -> "Rheumatoid arthritis"
+- "frequent urination, excessive thirst, weight loss" -> "Diabetes mellitus"
+- "burning urination with fever and flank pain" -> "Acute pyelonephritis"
 
 Now give just the single modern diagnosis:
 <assistant>"""
     resp = await llm.generate.remote.aio(prompt)
     text = resp.strip()
-    for sep in [",", " or ", " and ", ";", "/", "|"]:
+
+    # Cut off anything after separators
+    for sep in [",", " or ", " and ", ";", "/", "|", ":"]:
         if sep in text:
             text = text.split(sep)[0]
+
+    # If still too long (too many words), keep only first 4 words
+    words = text.split()
+    if len(words) > 4:
+        text = " ".join(words[:4])
+
     return text.strip()
 
 
@@ -312,7 +326,7 @@ Now map: {modern_dx}
 <assistant>"""
     resp = await llm.generate.remote.aio(prompt)
     text = resp.strip()
-    for sep in [",", " or ", " and ", ";", "/", "|"]:
+    for sep in [",", " or ", " and ", ";", "/", "|", ":"]:
         if sep in text:
             text = text.split(sep)[0]
     return text.strip()
