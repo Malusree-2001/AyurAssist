@@ -1,7 +1,6 @@
 import modal
 import json
 import os
-from difflib import SequenceMatcher
 from contextlib import asynccontextmanager
 
 from config import (
@@ -97,7 +96,6 @@ class LLMEngine:
 
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
         prompt_len = inputs["input_ids"].shape[1]
-        # Cap generation so prompt + output stays within 2048 context
         max_new = min(LLM_MAX_TOKENS, LLM_MAX_MODEL_LEN - prompt_len)
         if max_new < 50:
             print(f"Warning: prompt too long ({prompt_len} tokens), only {max_new} tokens left for generation")
@@ -137,7 +135,12 @@ def _lookup_umls_snomed(api_key, keyword):
     # Step 1: keyword -> CUI
     try:
         params = {"string": keyword, "apiKey": api_key, "returnIdType": "concept"}
-        r = requests.get(UMLS_SEARCH_URL, params=params, timeout=UMLS_REQUEST_TIMEOUT)
+        r = requests.get(UMLS_SEARCH_URL, params=params, timeout=ULS_REQUEST_TIMEOUT)
+    except NameError:
+        # fix typo if needed
+        import requests as _req
+        r = _req.get(UMLS_SEARCH_URL, params=params, timeout=UMLS_REQUEST_TIMEOUT)
+    try:
         if r.status_code == 200:
             results = r.json().get("result", {}).get("results", [])
             if results:
@@ -150,8 +153,9 @@ def _lookup_umls_snomed(api_key, keyword):
         return umls_cui, snomed_code
 
     # Step 2: CUI -> SNOMED code via atoms
+    import requests as rq2
     try:
-        r = requests.get(
+        r2 = rq2.get(
             UMLS_ATOMS_URL_TEMPLATE.format(cui=umls_cui),
             params={
                 "apiKey": api_key,
@@ -161,8 +165,8 @@ def _lookup_umls_snomed(api_key, keyword):
             },
             timeout=UMLS_REQUEST_TIMEOUT,
         )
-        if r.status_code == 200:
-            atoms = r.json().get("result", [])
+        if r2.status_code == 200:
+            atoms = r2.json().get("result", [])
             if atoms:
                 code_uri = atoms[0].get("code", "")
                 snomed_code = code_uri.rsplit("/", 1)[-1] if "/" in code_uri else code_uri
@@ -269,17 +273,34 @@ def _build_treatment_from_responses(responses, condition, sanskrit):
     }
 
 
-async def _get_ayurvedic_diagnosis(llm, entities):
-    """Use AyurParam to pick Ayurvedic diagnosis from NER entities."""
+async def _get_ranked_ayur_diagnoses(llm, entities):
+    """Ask AyurParam for primary + secondary diagnoses in JSON."""
     symptom_list = ", ".join(entities) if entities else "no clear entities"
     prompt = f"""<user>
 Patient presents with these symptoms: {symptom_list}
 
-Based on Ayurvedic principles, what is the single most likely primary condition (roga/vyadhi)?
-Answer with ONLY the Ayurvedic disease name (Sanskrit/IAST or standard Ayurvedic English term), no explanation.
+From an Ayurvedic perspective, list the most likely diagnoses in order of priority.
+Return them in this JSON format only:
+
+{{
+  "primary": "<primary Ayurvedic diagnosis>",
+  "secondary": ["<second diagnosis>", "<third diagnosis>"]
+}}
+
+Only include diagnoses if you are reasonably confident. Do not add explanations.
 <assistant>"""
     resp = await llm.generate.remote.aio(prompt)
-    return resp.strip()
+    primary = ""
+    secondary = []
+    try:
+        data = json.loads(resp)
+        primary = (data.get("primary") or "").strip()
+        secondary = [d.strip() for d in data.get("secondary", []) if d.strip()]
+    except Exception as e:
+        print(f"Diagnosis JSON parse error, using raw response: {e}")
+        primary = resp.strip()
+        secondary = []
+    return primary, secondary
 
 
 async def _translate_ayurvedic_to_english(llm, ayurvedic_term):
@@ -393,23 +414,26 @@ def fastapi_app():
 
             llm = LLMEngine()
 
-            # 2. AyurParam → ayurvedic_diagnosis
+            # 2. AyurParam → primary + secondary Ayurvedic diagnoses
             try:
-                ayurvedic_diagnosis = await _get_ayurvedic_diagnosis(llm, entity_words)
+                primary_ayur, secondary_ayur_list = await _get_ranked_ayur_diagnoses(llm, entity_words)
             except Exception as e:
                 print(f"AyurParam diagnosis error: {e}")
-                ayurvedic_diagnosis = user_input  # fallback
+                primary_ayur = user_input
+                secondary_ayur_list = []
 
-            # 3. AyurParam → english_equivalent
+            ayurvedic_diagnosis = primary_ayur or user_input
+
+            # 3. AyurParam → english_equivalent (for primary only)
             try:
                 english_equivalent = await _translate_ayurvedic_to_english(llm, ayurvedic_diagnosis)
             except Exception as e:
                 print(f"AyurParam translation error: {e}")
-                english_equivalent = ayurvedic_diagnosis  # fallback
+                english_equivalent = ayurvedic_diagnosis
 
             english_term_for_umls = english_equivalent.strip() or ayurvedic_diagnosis
 
-            # 4. UMLS → umls_cui, snomed_code (using english_equivalent)
+            # 4. UMLS → umls_cui, snomed_code (using primary English term)
             umls_cui, snomed_code = _lookup_umls_snomed(
                 st.umls_api_key, english_term_for_umls
             )
@@ -417,7 +441,7 @@ def fastapi_app():
             # 4b. ICD10CM from CUI
             icd10cm_code = _lookup_icd10cm_from_cui(st.umls_api_key, umls_cui)
 
-            # 5. AyurParam → 6-question treatment using ayurvedic_diagnosis
+            # 5. AyurParam → 6-question treatment using primary Ayurvedic diagnosis
             questions = _build_questions(
                 condition=ayurvedic_diagnosis,
                 sanskrit="",
@@ -444,6 +468,7 @@ def fastapi_app():
                 "input_text": user_input,
                 "clinical_entities": entities if entities else [{"word": user_input, "score": 1.0}],
                 "ayurvedic_diagnosis": ayurvedic_diagnosis,
+                "secondary_ayurvedic_diagnoses": secondary_ayur_list,
                 "english_equivalent": english_equivalent,
                 "umls_cui": umls_cui,
                 "snomed_code": snomed_code,
