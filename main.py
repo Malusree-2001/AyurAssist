@@ -1,6 +1,5 @@
 import modal
 import json
-import csv
 import os
 from difflib import SequenceMatcher
 from contextlib import asynccontextmanager
@@ -31,7 +30,6 @@ cpu_image = (
         "fastapi[standard]==0.109.0",
         "requests==2.31.0",
     )
-    .add_local_file(CSV_SOURCE_PATH, CSV_CONTAINER_PATH)
     .add_local_file("config.py", "/root/config.py")
 )
 
@@ -51,7 +49,6 @@ gpu_image = (
 )
 
 volume = modal.Volume.from_name(MODAL_VOLUME_NAME, create_if_missing=True)
-
 
 # ===================================================================
 # GPU Tier: Transformers engine for AyurParam (only LLM inference)
@@ -125,49 +122,11 @@ class LLMEngine:
 
 
 # ===================================================================
-# CPU Tier: NER + CSV + UMLS orchestration, served as ASGI app
+# Helper functions (no CSV; UMLS + AyurParam only)
 # ===================================================================
 
-# --- Helper functions (pure, no class state) ---
-
-def _load_csv_lookup(csv_path):
-    snomed_lookup = {}
-    term_lookup = {}
-    try:
-        with open(csv_path, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row.get("Match_Status") == "Unmatched":
-                    continue
-                snomed = row.get("SNOMED_Code", "").strip()
-                if snomed:
-                    snomed_lookup[snomed] = row
-                for field in ("Search_Term_Used", "Ayurveda_Term"):
-                    term = row.get(field, "").strip().lower()
-                    if term:
-                        term_lookup[term] = row
-    except Exception as e:
-        print(f"CSV load error: {e}")
-    return snomed_lookup, term_lookup
-
-
-def _fuzzy_csv_lookup(term_lookup, keyword):
-    key = keyword.strip().lower()
-    if key in term_lookup:
-        return term_lookup[key]
-    best_match = None
-    best_score = 0.0
-    for term, row in term_lookup.items():
-        score = SequenceMatcher(None, key, term).ratio()
-        if score > best_score:
-            best_score = score
-            best_match = row
-    return best_match if best_score >= FUZZY_MATCH_THRESHOLD else None
-
-
-def _lookup_umls(api_key, keyword, search_sabs=None):
-    """Two-step UMLS: search -> CUI, then CUI atoms -> SNOMED code.
-    If search_sabs is set (e.g. 'ICD10CM'), only match terms from that source."""
+def _lookup_umls_snomed(api_key, keyword):
+    """keyword -> (CUI, SNOMED code) using UMLS search + SNOMED atoms."""
     import requests
 
     umls_cui = "N/A"
@@ -178,13 +137,7 @@ def _lookup_umls(api_key, keyword, search_sabs=None):
     # Step 1: keyword -> CUI
     try:
         params = {"string": keyword, "apiKey": api_key, "returnIdType": "concept"}
-        if search_sabs:
-            params["sabs"] = search_sabs
-        r = requests.get(
-            UMLS_SEARCH_URL,
-            params=params,
-            timeout=UMLS_REQUEST_TIMEOUT,
-        )
+        r = requests.get(UMLS_SEARCH_URL, params=params, timeout=UMLS_REQUEST_TIMEOUT)
         if r.status_code == 200:
             results = r.json().get("result", {}).get("results", [])
             if results:
@@ -200,7 +153,12 @@ def _lookup_umls(api_key, keyword, search_sabs=None):
     try:
         r = requests.get(
             UMLS_ATOMS_URL_TEMPLATE.format(cui=umls_cui),
-            params={"apiKey": api_key, "sabs": "SNOMEDCT_US", "ttys": "PT", "pageSize": 5},
+            params={
+                "apiKey": api_key,
+                "sabs": "SNOMEDCT_US",
+                "ttys": "PT",
+                "pageSize": 10,
+            },
             timeout=UMLS_REQUEST_TIMEOUT,
         )
         if r.status_code == 200:
@@ -209,13 +167,42 @@ def _lookup_umls(api_key, keyword, search_sabs=None):
                 code_uri = atoms[0].get("code", "")
                 snomed_code = code_uri.rsplit("/", 1)[-1] if "/" in code_uri else code_uri
     except Exception as e:
-        print(f"UMLS atoms error: {e}")
+        print(f"UMLS atoms (SNOMED) error: {e}")
 
     return umls_cui, snomed_code
 
 
+def _lookup_icd10cm_from_cui(api_key, umls_cui):
+    """CUI -> ICD10CM code via UMLS atoms."""
+    import requests
+
+    icd_code = "N/A"
+    if umls_cui == "N/A" or not api_key:
+        return icd_code
+
+    try:
+        r = requests.get(
+            UMLS_ATOMS_URL_TEMPLATE.format(cui=umls_cui),
+            params={
+                "apiKey": api_key,
+                "sabs": "ICD10CM",
+                "pageSize": 10,
+            },
+            timeout=UMLS_REQUEST_TIMEOUT,
+        )
+        if r.status_code == 200:
+            atoms = r.json().get("result", [])
+            if atoms:
+                code_uri = atoms[0].get("code", "")
+                icd_code = code_uri.rsplit("/", 1)[-1] if "/" in code_uri else code_uri
+    except Exception as e:
+        print(f"UMLS atoms (ICD10CM) error: {e}")
+
+    return icd_code
+
+
 def _build_questions(condition, sanskrit, description):
-    """Build the 6 focused questions matching the notebook's multi-question approach."""
+    """Build the 6 focused questions (AyurParam notebook style)."""
     sanskrit_part = f" ({sanskrit})" if sanskrit else ""
     return [
         (
@@ -250,18 +237,22 @@ def _build_questions(condition, sanskrit, description):
     ]
 
 
-def _build_treatment_from_responses(responses, condition, sanskrit, csv_data):
+def _build_treatment_from_responses(responses, condition, sanskrit):
     """Assemble the 6 text responses into a structured treatment dict."""
     return {
-        "condition_name": (csv_data.get("Ayurveda_Term") if csv_data else None) or condition,
-        "sanskrit_name": (csv_data.get("Sanskrit_IAST") if csv_data else None) or sanskrit,
+        "condition_name": condition,
+        "sanskrit_name": sanskrit or "",
         "brief_description": responses[0][:500] if responses[0] else "",
         "dosha_involvement": "",
         "nidana_causes": [],
         "rupa_symptoms": [],
         "ottamooli_single_remedies": [],
         "classical_formulations": [],
-        "pathya_dietary_advice": {"foods_to_favor": [], "foods_to_avoid": [], "specific_dietary_rules": ""},
+        "pathya_dietary_advice": {
+            "foods_to_favor": [],
+            "foods_to_avoid": [],
+            "specific_dietary_rules": "",
+        },
         "vihara_lifestyle": [],
         "yoga_exercises": [],
         "prognosis": "",
@@ -278,13 +269,45 @@ def _build_treatment_from_responses(responses, condition, sanskrit, csv_data):
     }
 
 
-# --- ASGI lifespan: loads NER + CSV once, kicks off GPU warmup in parallel ---
+async def _get_ayurvedic_diagnosis(llm, entities):
+    """Use AyurParam to pick Ayurvedic diagnosis from NER entities."""
+    symptom_list = ", ".join(entities) if entities else "no clear entities"
+    prompt = f"""<user>
+Patient presents with these symptoms: {symptom_list}
+
+Based on Ayurvedic principles, what is the single most likely primary condition (roga/vyadhi)?
+Answer with ONLY the Ayurvedic disease name (Sanskrit/IAST or standard Ayurvedic English term), no explanation.
+<assistant>"""
+    resp = await llm.generate.remote.aio(prompt)
+    return resp.strip()
+
+
+async def _translate_ayurvedic_to_english(llm, ayurvedic_term):
+    """Use AyurParam to map an Ayurvedic term to a modern English disease name."""
+    prompt = f"""<user>
+What is the modern medical English equivalent or closest diagnosis for this Ayurvedic condition: {ayurvedic_term}
+
+Answer with ONLY the standard English medical term that would appear in ICD-10 or SNOMED CT (1-3 words).
+Examples:
+Ardhavabhedaka -> Migraine
+Amavata -> Rheumatoid arthritis
+Madhumeha -> Diabetes mellitus
+Kasa -> Cough
+Jwara -> Fever
+
+Now give just the modern term:
+<assistant>"""
+    resp = await llm.generate.remote.aio(prompt)
+    return resp.strip()
+
+
+# --- ASGI lifespan: loads NER once, kicks off GPU warmup in parallel ---
 
 @asynccontextmanager
 async def lifespan(web_app):
     import asyncio
+    import spacy
 
-    # Fire GPU warmup immediately so it runs in parallel with NER loading
     async def _gpu_warmup():
         try:
             await LLMEngine().warmup.remote.aio()
@@ -294,22 +317,13 @@ async def lifespan(web_app):
 
     asyncio.create_task(_gpu_warmup())
 
-    # Load NER model in a thread so it doesn't block the event loop
-    # (allows the GPU warmup coroutine above to make progress)
-    import spacy
-
     def _load_ner():
         return spacy.load(NER_MODEL_NAME)
 
     web_app.state.ner = await asyncio.to_thread(_load_ner)
-
-    # CSV and config (fast)
-    web_app.state.snomed_lookup, web_app.state.term_lookup = _load_csv_lookup(
-        CSV_CONTAINER_PATH
-    )
     web_app.state.umls_api_key = os.environ.get("UMLS_API_KEY", "")
 
-    print("CPU engine ready.")
+    print("CPU engine ready (NER + UMLS, no CSV).")
     yield
 
 
@@ -328,6 +342,7 @@ async def lifespan(web_app):
 def fastapi_app():
     from fastapi import FastAPI, Request, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
+    import asyncio
 
     web = FastAPI(lifespan=lifespan)
     web.add_middleware(
@@ -342,8 +357,6 @@ def fastapi_app():
     async def warmup():
         """Called by the frontend on page load. Returns immediately;
         the GPU container spins up in the background."""
-        import asyncio
-
         async def _wake():
             try:
                 await LLMEngine().warmup.remote.aio()
@@ -355,8 +368,6 @@ def fastapi_app():
 
     @web.post("/")
     async def analyze(request: Request):
-        import asyncio
-
         try:
             body = await request.json()
             user_input = body.get("text", "").strip()
@@ -365,9 +376,8 @@ def fastapi_app():
 
             st = request.app.state
 
-            # 1. NER (CPU, in-process -- run in thread to keep event loop free)
+            # 1. NER → entities
             entities = []
-            keyword = user_input
             try:
                 doc = await asyncio.to_thread(st.ner, user_input)
                 for ent in doc.ents:
@@ -379,61 +389,41 @@ def fastapi_app():
             except Exception as e:
                 print(f"NER error: {e}")
 
-            # 2. Pick keyword: CSV match first, then UMLS (diseases only)
-            umls_cui, snomed_code = "N/A", "N/A"
-            csv_data = None
-
-            if entities:
-                unique_words = list(dict.fromkeys(e["word"] for e in entities))
-
-                # 2a. Exact CSV match on each entity (no fuzzy — avoids
-                #      garbage like "fat" fuzzy-matching short CSV terms)
-                for word in unique_words:
-                    key = word.strip().lower()
-                    if key in st.term_lookup:
-                        keyword = word
-                        csv_data = st.term_lookup[key]
-                        snomed_code = csv_data.get("SNOMED_Code", "N/A").strip() or "N/A"
-                        break
-
-                # 2b. No exact CSV hit — try UMLS restricted to ICD-10
-                #      (covers diseases AND conditions/symptoms via R-codes)
-                if csv_data is None:
-                    umls_results = await asyncio.gather(*(
-                        asyncio.to_thread(
-                            _lookup_umls, st.umls_api_key, w, search_sabs="ICD10CM"
-                        )
-                        for w in unique_words
-                    ))
-                    # Rank: SNOMED in our CSV > has SNOMED > CUI only;
-                    # among ties prefer longer entity (more specific term)
-                    candidates = []
-                    for word, (cui, snomed) in zip(unique_words, umls_results):
-                        if cui == "N/A":
-                            continue
-                        in_csv = (snomed != "N/A"
-                                  and snomed in st.snomed_lookup)
-                        has_snomed = snomed != "N/A"
-                        candidates.append(
-                            (in_csv, has_snomed, len(word), word, cui, snomed)
-                        )
-                    if candidates:
-                        candidates.sort(reverse=True)
-                        _, _, _, keyword, umls_cui, snomed_code = candidates[0]
-
-            # 3. CSV lookup from SNOMED or fuzzy keyword match
-            if csv_data is None:
-                if snomed_code != "N/A":
-                    csv_data = st.snomed_lookup.get(snomed_code)
-                if csv_data is None:
-                    csv_data = _fuzzy_csv_lookup(st.term_lookup, keyword)
-
-            # 4. LLM generation — 6 focused questions (matching notebook approach)
-            sanskrit = (csv_data.get("Sanskrit_IAST", "") if csv_data else "") or ""
-            description = (csv_data.get("Description", "") if csv_data else "") or ""
-            questions = _build_questions(keyword, sanskrit, description)
+            entity_words = [e["word"] for e in entities] if entities else [user_input]
 
             llm = LLMEngine()
+
+            # 2. AyurParam → ayurvedic_diagnosis
+            try:
+                ayurvedic_diagnosis = await _get_ayurvedic_diagnosis(llm, entity_words)
+            except Exception as e:
+                print(f"AyurParam diagnosis error: {e}")
+                ayurvedic_diagnosis = user_input  # fallback
+
+            # 3. AyurParam → english_equivalent
+            try:
+                english_equivalent = await _translate_ayurvedic_to_english(llm, ayurvedic_diagnosis)
+            except Exception as e:
+                print(f"AyurParam translation error: {e}")
+                english_equivalent = ayurvedic_diagnosis  # fallback
+
+            english_term_for_umls = english_equivalent.strip() or ayurvedic_diagnosis
+
+            # 4. UMLS → umls_cui, snomed_code (using english_equivalent)
+            umls_cui, snomed_code = _lookup_umls_snomed(
+                st.umls_api_key, english_term_for_umls
+            )
+
+            # 4b. ICD10CM from CUI
+            icd10cm_code = _lookup_icd10cm_from_cui(st.umls_api_key, umls_cui)
+
+            # 5. AyurParam → 6-question treatment using ayurvedic_diagnosis
+            questions = _build_questions(
+                condition=ayurvedic_diagnosis,
+                sanskrit="",
+                description="",
+            )
+
             responses = []
             for q in questions:
                 prompt = f"<user> {q} <assistant>"
@@ -444,29 +434,21 @@ def fastapi_app():
                     print(f"LLM error for question: {e}")
                     responses.append("")
 
-            # 5. Assemble treatment from responses
             treatment = _build_treatment_from_responses(
-                responses, keyword, sanskrit, csv_data
+                responses,
+                condition=ayurvedic_diagnosis,
+                sanskrit="",
             )
 
             return {
                 "input_text": user_input,
-                "clinical_entities": entities if entities else [{"word": keyword, "score": 1.0}],
+                "clinical_entities": entities if entities else [{"word": user_input, "score": 1.0}],
+                "ayurvedic_diagnosis": ayurvedic_diagnosis,
+                "english_equivalent": english_equivalent,
                 "umls_cui": umls_cui,
                 "snomed_code": snomed_code,
-                "csv_match": {
-                    "ita_id": csv_data.get("ITA_ID", ""),
-                    "ayurveda_term": csv_data.get("Ayurveda_Term", ""),
-                    "sanskrit_iast": csv_data.get("Sanskrit_IAST", ""),
-                    "sanskrit": csv_data.get("Sanskrit", ""),
-                    "description": csv_data.get("Description", ""),
-                } if csv_data else None,
-                "results": [{
-                    "ayurveda_term": (csv_data.get("Ayurveda_Term") if csv_data else None)
-                                     or treatment.get("condition_name", keyword),
-                    "snomed_code": snomed_code,
-                    "treatment_info": treatment,
-                }],
+                "icd10cm_code": icd10cm_code,
+                "treatment_info": treatment,
             }
         except HTTPException:
             raise
